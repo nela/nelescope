@@ -136,7 +136,7 @@
 						depthTest: true,
 						onBeforeCompile: boopShader(parent.material.userData.boop)
 					});
-
+          mesh.position.fromArray(parent.position.toArray())
 					mesh.castShadow = true;
 					mesh.receiveShadow = true;
 					return mesh;
@@ -153,11 +153,11 @@
 
 	const onMove = (e: IntersectionEvent<MouseEvent>) => {
 		if (blocked) return;
-		fx = width / 2 < e.point.x ? -1 : 1;
-		fy = height / 2 < e.point.y ? 1 : -1;
 
-		boop.set({ x: e.point.y * (fy / width), y: e.point.x * (fx / width) });
-		coords = { x: e.point.y * fy, y: e.point.x * fx };
+		boop.set({
+      x: -1 * (e.point.y - box.position.y) / (height /* * 0.3 */),
+      y: (e.point.x - box.position.x) / (width /* * 0.3 */)
+    });
 	};
 
 	const onLeave = (_: IntersectionEvent<MouseEvent>) => {
