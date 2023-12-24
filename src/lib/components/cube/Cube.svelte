@@ -8,21 +8,36 @@
 	import githubMarkWhite from '../../../assets/github-mark-white.svg?raw';
 	import { RoundEdgedBox } from './box';
 
-  interface Transform {
-    translate: { x: number; y: number; z: number };
-    rotate: { x: number; y: number; z: number };
-  }
+	interface Transform {
+		translate: { x: number; y: number; z: number };
+		rotate: { x: number; y: number; z: number };
+	}
 
 	export let width = 4;
 	export let height = 4;
 	export let depth = 4;
 	export let radius = 0.25;
-	export let radiusSegments = 6;
-	export let heightSegments = 6;
-	export let widthSegments = 6;
-	export let depthSegments = 6;
+	export let radiusSegments = 8;
+	export let heightSegments = 8;
+	export let widthSegments = 8;
+	export let depthSegments = 8;
 
 	const { onPointerEnter, onPointerLeave } = useCursor();
+	/* const roundedEdgesVertex = `
+    vec3 signs = sign(position);
+    vec3 box = boxSize - vec3(radius);
+    box = vec3(max(0.0, box.x), max(0.0, box.y), max(0.0, box.z));
+    vec3 p = signs * box;
+
+    transformed = signs * box + normalize(position) * radius;
+
+    // re-compute normals for correct shadows and reflections
+    objectNormal = all(equal(p, transformed)) ? normal : normalize(position);
+    transformedNormal = normalize(normalMatrix * objectNormal);
+
+    vNormal = transformedNormal;
+    // transformed = signs * subBox + normalize(position) * radius
+  ` */
 	const boopVertex = `
     vec3 pos = transformed;
     float x = pos.x * cos(boop.y) + pos.z * sin(boop.y);
@@ -36,19 +51,24 @@
 	let blocked = false;
 	const boop = spring({ x: 0, y: 0 }, { stiffness: 0.1, damping: 0.1 });
 	let coords = { x: 0, y: 0 };
-	let fx = 1,
-		fy = 1;
 
-  const boopShader = (uniformBoop: THREE.IUniform<any>) =>
-		(shader: THREE.Shader) => {
-			shader.uniforms.boop = uniformBoop;
-			shader.vertexShader = 'uniform vec2 boop;\n' + shader.vertexShader;
-			shader.vertexShader = shader.vertexShader.replace(
-				'#include <begin_vertex>',
-				['#include <begin_vertex>', boopVertex].join('\n')
-			);
-		;
+	const boopShader = (uniformBoop: THREE.IUniform<any>) => (shader: THREE.Shader) => {
+		shader.uniforms.boop = uniformBoop;
+		shader.vertexShader =
+			`
+        uniform vec2 boop;
+      ` + shader.vertexShader;
+		shader.vertexShader = shader.vertexShader.replace(
+			'#include <begin_vertex>',
+			['#include <begin_vertex>', boopVertex].join('\n')
+		);
 	};
+	const tloader = new THREE.TextureLoader();
+	// const displacement = tloader.load('src/assets/metal_046b/Metal046B_4K-JPG_Displacement.jpg')
+	const baseMap = tloader.load('src/assets/metal_046b/Metal046B_4K-JPG_Color.jpg');
+	const metalnessMap = tloader.load('src/assets/metal_046b/Metal046B_4K-JPG_Metalness.jpg');
+	const normalMap = tloader.load('src/assets/metal_046b/Metal046B_4K-JPG_NormalGL.jpg');
+	const roughnessMap = tloader.load('src/assets/metal_046b/Metal046B_4K-JPG_Roughness.jpg');
 
 	const createBox = (): THREE.Mesh => {
 		const geometry = RoundEdgedBox(
@@ -61,10 +81,18 @@
 			depthSegments,
 			radiusSegments
 		);
+		// const geometry = new RoundedBoxGeometry(4, 4, 4, 9, 0.25);
+		// const geometry = new THREE.BoxGeometry(4, 4, 4, 9, 9, 9);
 		geometry.computeBoundingBox();
-		const material = new THREE.MeshPhongMaterial({
-			// wireframe: true,
-			color: '#39FF14',
+		const material = new THREE.MeshStandardMaterial({
+			map: baseMap,
+			roughnessMap: roughnessMap,
+			normalMap: normalMap,
+			metalnessMap: metalnessMap,
+			metalness: 1.0,
+			// displacementMap: displacement,
+			// displacementScale: 0.05,
+			// displacementBias: -0.06,
 			userData: {
 				boop: { value: $boop }
 			}
@@ -85,11 +113,7 @@
 		return mesh;
 	};
 
-	const createSvg = (
-		path: string,
-		transform: Transform,
-		parent: THREE.Mesh
-	) => {
+	const createSvg = (path: string, transform: Transform, parent: THREE.Mesh) => {
 		const group = new THREE.Group();
 		group.userData = {
 			boop: { value: $boop }
@@ -102,9 +126,9 @@
 					const material = new THREE.MeshPhongMaterial({
 						// wireframe: true,
 						color: '#fafafa',
-            shininess: 100,
-            reflectivity: 1,
-            specular: '#fafafa',
+						shininess: 100,
+						reflectivity: 1,
+						specular: '#fafafa'
 					});
 					material.onBeforeCompile = boopShader(parent.material.userData.boop);
 
@@ -136,7 +160,7 @@
 						depthTest: true,
 						onBeforeCompile: boopShader(parent.material.userData.boop)
 					});
-          mesh.position.fromArray(parent.position.toArray())
+					mesh.position.fromArray(parent.position.toArray());
 					mesh.castShadow = true;
 					mesh.receiveShadow = true;
 					return mesh;
@@ -155,9 +179,9 @@
 		if (blocked) return;
 
 		boop.set({
-      x: -1 * (e.point.y - box.position.y) / (height /* * 0.3 */),
-      y: (e.point.x - box.position.x) / (width /* * 0.3 */)
-    });
+			x: (-1 * (e.point.y - box.position.y)) / height /* * 0.3 */,
+			y: (e.point.x - box.position.x) / width /* * 0.3 */
+		});
 	};
 
 	const onLeave = (_: IntersectionEvent<MouseEvent>) => {
@@ -199,9 +223,9 @@
 			rotate: { x: -Math.PI / 2, y: 0, z: Math.PI }
 		}
 	];
-  const box = createBox();
+	let box = createBox();
 	const svgs = new THREE.Group();
-  transforms.map((t) => svgs.add(createSvg(githubMarkWhite, t, box)));
+	transforms.map((t) => svgs.add(createSvg(githubMarkWhite, t, box)));
 
 	$: if (blocked) {
 		clearTimeout(timeout);
