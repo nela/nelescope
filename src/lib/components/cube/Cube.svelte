@@ -101,7 +101,10 @@
 				SVGLoader.createShapes(path).map((shape) => {
 					const material = new THREE.MeshPhongMaterial({
 						// wireframe: true,
-						color: '#fafafa'
+						color: '#fafafa',
+            shininess: 100,
+            reflectivity: 1,
+            specular: '#fafafa',
 					});
 					material.onBeforeCompile = boopShader(parent.material.userData.boop);
 
