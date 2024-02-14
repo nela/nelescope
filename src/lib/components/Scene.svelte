@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { T } from '@threlte/core';
 	import Cube from './cube/Cube.svelte';
+  import Plane from './Plane.svelte';
 	import { OrbitControls } from '@threlte/extras';
 
   const aspect = window.innerWidth / window.innerHeight;
@@ -15,4 +16,5 @@
 
 <T.AxesHelper args={[2]}></T.AxesHelper>
 
+<Plane />
 <Cube />
